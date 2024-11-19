@@ -1,10 +1,17 @@
 package com.example.game
 
 import android.content.Context
+import kotlin.random.Random
 
+data class Coordinates(val x:Int, val y:Int)
 class GameField(private val size: Int) {
     // our game field
     private val field: Array<CharArray> = Array(size) { CharArray(size) }
+    private val emptyPoints: MutableList<Coordinates> =
+        MutableList(size * size) { index ->
+            Coordinates(index % size, index / size)
+        }
+
     fun getSize():Int{
         return size
     }
@@ -20,13 +27,25 @@ class GameField(private val size: Int) {
     fun getPoint(x: Int, y: Int): Char {
         if(x >= size || y >= size)
             return '0'
-        return field[x][y]
+        return field[y][x]
     }
 
-    // change state of current point
+    // change state of current point and manage emptyPoints
     fun setPoint(x: Int, y: Int, color: Char) {
-        field[x][y] = color
+        val currentColor = field[y][x]
+        val coordinates = Coordinates(y, x)
+
+        if (currentColor == '0' && color != '0') {
+            emptyPoints.remove(coordinates)
+        }
+
+        if (currentColor != '0' && color == '0' && !emptyPoints.contains(coordinates)) {
+            emptyPoints.add(coordinates)
+        }
+
+        field[y][x] = color
     }
+
     private fun isPathExist(fromX: Int, fromY: Int, toX: Int, toY: Int): Boolean {
         // check out of bounds
         if (fromX < 0 || fromX >= size || fromY < 0 || fromY >= size ||
@@ -84,9 +103,9 @@ class GameField(private val size: Int) {
             toX<0||toX>=size||toY<0||toY>=size){
             return
         }
-        if(field[fromY][fromX] != '0' && isPathExist(fromX,fromY,toX,toY)){
-            field[toY][toX] = field[fromY][fromX]
-            field[fromY][fromX] = '0';
+        if(field[fromY][fromX] != '0' && isPathExist(fromX,fromY,toX,toY)) {
+            setPoint(toX, toY, field[fromY][fromX])
+            setPoint(fromX, fromY,'0')
         }
     }
     fun writeToFile(context: Context, fileName: String) {
@@ -101,7 +120,6 @@ class GameField(private val size: Int) {
                 }
             }
         }
-
         val data = stringBuilder.toString()
         fileWriter.writeToFile(context, fileName, data)
     }
@@ -117,10 +135,16 @@ class GameField(private val size: Int) {
                     val y = parts[1].toInt()
                     val value = parts[2].first()
                     if (x in 0 until size && y in 0 until size) {
-                        field[y][x] = value
+                        setPoint(x,y,value)
                     }
                 }
             }
         }
+    }
+    fun getRandomCoordinate(): Coordinates? {
+        if (emptyPoints.isEmpty())
+            return null
+        val randomIndex = Random.nextInt(emptyPoints.size)
+        return emptyPoints.removeAt(randomIndex)
     }
 }

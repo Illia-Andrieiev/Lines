@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun GridScreen() {
-    val size: Int = 6
+    val size = 6
     val gameField = GameField(size)
     gameField.setPoint(0, 0, 'A')
     gameField.setPoint(1, 1, 'B')
