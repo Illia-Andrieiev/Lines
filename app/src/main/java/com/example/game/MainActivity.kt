@@ -10,16 +10,18 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.clickable
 import android.util.Log
 import androidx.compose.ui.Alignment
 import com.example.game.ui.theme.GameTheme
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxSize
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,12 +40,12 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun GridScreen() {
-    val size: Int = 9
+    val size: Int = 6
     val gameField = GameField(size)
     gameField.setPoint(0, 0, 'A')
     gameField.setPoint(1, 1, 'B')
     gameField.setPoint(2, 2, 'C')
-    gameField.setPoint(3, 5, 'C')
+    gameField.setPoint(3, 5, 'D')
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(size),
@@ -66,6 +68,9 @@ fun GridScreen() {
                         Log.d("GridScreen", "Cell clicked at: x=$x, y=$y")
                     }
             ) {
+                if (symbol != '0') {
+                    DrawCircle(radiusCoefficient = 0.8f, color = Color.Blue)
+                }
                 Text(
                     text = symbol.toString(),
                     modifier = Modifier.align(Alignment.Center),
@@ -76,26 +81,21 @@ fun GridScreen() {
     }
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
 
-@Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
-    GameTheme {
-        Greeting("Android")
+fun DrawCircle(radiusCoefficient: Float, color: Color) {
+    var adjustedRadiusCoefficient = radiusCoefficient
+    if (adjustedRadiusCoefficient > 1) {
+        adjustedRadiusCoefficient = 1f
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GridScreenPreview() {
-    GameTheme {
-        GridScreen()
+    if (adjustedRadiusCoefficient < 0) {
+        adjustedRadiusCoefficient = 0f
+    }
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        drawCircle(
+            color = color,
+            radius = size.minDimension / 2 * adjustedRadiusCoefficient,
+            center = center
+        )
     }
 }
