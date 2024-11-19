@@ -17,6 +17,9 @@
       <SelectionState runConfigName="testWriteAndReadGameField()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
+      <SelectionState runConfigName="testMoveBall()">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
     </selectionStates>
   </component>
 </project>

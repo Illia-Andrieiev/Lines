@@ -1,6 +1,7 @@
 package com.example.game
 
 import android.content.Context
+import kotlin.math.pow
 import kotlin.random.Random
 
 data class Coordinates(val x:Int, val y:Int)
@@ -98,16 +99,77 @@ class GameField(private val size: Int) {
     }
 
     // move ball, if it exit and path exist from one point, to another.
-    fun moveBall(fromX:Int,fromY:Int,toX:Int,toY:Int){
+    fun moveBall(fromX:Int,fromY:Int,toX:Int,toY:Int):Int{
         if(fromX<0 || fromX >=size||fromY<0||fromY>=size||
             toX<0||toX>=size||toY<0||toY>=size){
-            return
+            return -1
         }
         if(field[fromY][fromX] != '0' && isPathExist(fromX,fromY,toX,toY)) {
             setPoint(toX, toY, field[fromY][fromX])
             setPoint(fromX, fromY,'0')
+            return movementScore(toX, toY)
         }
+        return -1
     }
+    fun movementScore(x: Int, y: Int): Int {
+        val targetChar = field[y][x]
+        if (targetChar == '0') return 0
+
+        // Directions: horizontal, vertical and two diagonals
+        val directions = arrayOf(
+            intArrayOf(1, 0), intArrayOf(0, 1), // horizontal, vertical
+            intArrayOf(1, 1), intArrayOf(1, -1) // two diagonals
+        )
+
+        var maxLineLen = 0
+        var maxLineCoordinates: List<Coordinates> = emptyList()
+
+        for (dir in directions) {
+            val lineCoordinates = mutableListOf<Coordinates>()
+            lineCoordinates.add(Coordinates(x, y))
+
+            // Check in one direction
+            var i = 1
+            while (true) {
+                val newX = x + i * dir[0]
+                val newY = y + i * dir[1]
+                if (newX in 0 until size && newY in 0 until size && field[newY][newX] == targetChar) {
+                    lineCoordinates.add(Coordinates(newX, newY))
+                    i++
+                } else {
+                    break
+                }
+            }
+
+            // Check in another direction
+            i = 1
+            while (true) {
+                val newX = x - i * dir[0]
+                val newY = y - i * dir[1]
+                if (newX in 0 until size && newY in 0 until size && field[newY][newX] == targetChar) {
+                    lineCoordinates.add(Coordinates(newX, newY))
+                    i++
+                } else {
+                    break
+                }
+            }
+
+            if (lineCoordinates.size > maxLineLen) {
+                maxLineLen = lineCoordinates.size
+                maxLineCoordinates = lineCoordinates
+            }
+        }
+
+        if (maxLineLen >= 5) {
+            for (coordinate in maxLineCoordinates) {
+                setPoint(coordinate.x, coordinate.y, '0')
+            }
+            return 10 * 2.0.pow((maxLineLen - 5)).toInt()
+        }
+
+        return 0
+    }
+
     fun writeToFile(context: Context, fileName: String) {
         val fileWriter = FileWriter()
         val stringBuilder = StringBuilder()
@@ -141,7 +203,7 @@ class GameField(private val size: Int) {
             }
         }
     }
-    fun getRandomCoordinate(): Coordinates? {
+    fun getRandomEmptyCoordinate(): Coordinates? {
         if (emptyPoints.isEmpty())
             return null
         val randomIndex = Random.nextInt(emptyPoints.size)
