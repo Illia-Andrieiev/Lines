@@ -1,10 +1,13 @@
 package com.example.game
 
 import android.content.Context
+import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.random.Random
 
 data class Coordinates(val x:Int, val y:Int)
+data class Ball(val x:Int, val y:Int, val color:Char)
+
 class GameField(private val size: Int) {
     // our game field
     private val field: Array<CharArray> = Array(size) { CharArray(size) }
@@ -121,7 +124,7 @@ class GameField(private val size: Int) {
         }
         return -1
     }
-    fun movementScore(x: Int, y: Int): Int {
+    private fun movementScore(x: Int, y: Int): Int {
         val targetChar = field[y][x]
         if (targetChar == '0') return 0
 
@@ -213,10 +216,33 @@ class GameField(private val size: Int) {
             }
         }
     }
-    fun getRandomEmptyCoordinate(): Coordinates? {
+    private fun getRandomColor():Char{
+        val randomIndex = Random.nextInt(7)
+        when(randomIndex){
+            0 -> return 'r'
+            1 -> return 'b'
+            2 -> return 'B'
+            3 -> return 'g'
+            4 -> return 'y'
+            5 -> return 'c'
+            6 -> return 'm'
+        }
+        return '0'
+    }
+    fun placeRandomBall(): Boolean {
+        if (emptyPoints.isEmpty())
+            return false
+        val randomIndex = Random.nextInt(emptyPoints.size)
+        val newBallCoordinates = emptyPoints.removeAt(randomIndex)
+        setPoint(newBallCoordinates.y, newBallCoordinates.x, getRandomColor())
+        return true
+    }
+    fun getRandomBall(): Ball? {
         if (emptyPoints.isEmpty())
             return null
         val randomIndex = Random.nextInt(emptyPoints.size)
-        return emptyPoints.removeAt(randomIndex)
+        val newBallCoordinates = emptyPoints[randomIndex]
+        return Ball(newBallCoordinates.y, newBallCoordinates.x, getRandomColor())
     }
+
 }

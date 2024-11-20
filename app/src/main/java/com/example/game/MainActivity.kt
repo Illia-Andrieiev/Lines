@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
             GameTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(modifier = Modifier.padding(innerPadding)) {
-                        val gameViewModel: GameViewModel = GameViewModel()
+                        val gameViewModel = GameViewModel()
                         GridScreen(gameViewModel)
                     }
                 }
@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
 class GameViewModel : ViewModel() {
     private val _gameField = MutableLiveData(GameField(9))
     val gameField: LiveData<GameField> = _gameField
-
+    private val nextBalls = MutableLiveData(mutableListOf<Ball>())
     private var firstClick: Pair<Int, Int>? = null
 
     init {
@@ -71,18 +71,41 @@ class GameViewModel : ViewModel() {
             val (prevX, prevY) = firstClick!!
             val moveScore = gameFieldValue.moveBall(prevX, prevY, x, y)
 
-            _gameField.value = gameFieldValue.copy()
             Log.d("GridScreen", "Move Score: $moveScore")
             if (moveScore != -1) {
-                val f = 2+2
-
-            } else {
-                val f =2+2
+                if(moveScore == 0){
+                    val isGameEnd: Int = placeRandomBalls(3)
+                    Log.d("GridScreen", "$isGameEnd, count of balls: ${countNotNullPoints()}")
+                }
             }
+            _gameField.value = gameFieldValue.copy()
             firstClick = null
         }
     }
+    fun placeRandomBalls(n:Int): Int{
+        var i = n
+        val gameFieldValue = _gameField.value ?: return -1
+        while (i>0 && gameFieldValue.placeRandomBall()){
+            i--
+        }
+        _gameField.value = gameFieldValue.copy()
+        if(i != 0){
+            return -1
+        }
+        return 0
+    }
+    private fun countNotNullPoints():Int{
+        var count = 0
+        for (i in 0 until (_gameField.value?.getSize() ?: 9)) {
+            for (j in 0 until (_gameField.value?.getSize() ?: 9)) {
+                if (_gameField.value?.getPoint(i, j) != '0') {
+                    count++
+                }
+            }
+        }
 
+        return count
+    }
 }
 
 @Composable
