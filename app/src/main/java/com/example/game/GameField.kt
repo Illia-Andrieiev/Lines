@@ -12,7 +12,17 @@ class GameField(private val size: Int) {
         MutableList(size * size) { index ->
             Coordinates(index % size, index / size)
         }
-
+    fun copy(): GameField {
+        val newGameField = GameField(this.size)
+        for (i in 0 until size) {
+            for (j in 0 until size) {
+                newGameField.field[i][j] = this.field[i][j]
+            }
+        }
+        newGameField.emptyPoints.clear()
+        newGameField.emptyPoints.addAll(this.emptyPoints)
+        return newGameField
+    }
     fun getSize():Int{
         return size
     }
