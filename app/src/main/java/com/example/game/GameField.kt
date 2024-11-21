@@ -1,6 +1,7 @@
 package com.example.game
 
 import android.content.Context
+import android.util.Log
 import kotlin.math.pow
 import kotlin.random.Random
 
@@ -14,7 +15,7 @@ class GameField(private val size: Int) {
         MutableList(size * size) { index ->
             Coordinates(index % size, index / size)
         }
-    private var score = 0
+    var score = 0
 
     init {
         for (i in 0 until size) {
@@ -24,9 +25,6 @@ class GameField(private val size: Int) {
         }
     }
 
-    fun getScore():Int{
-        return score
-    }
     fun getAmountOfEmptyPoints():Int{
         return emptyPoints.size
     }
@@ -197,6 +195,7 @@ class GameField(private val size: Int) {
     fun writeToFile(context: Context, fileName: String) {
         val fileWriter = FileWriter()
         val stringBuilder = StringBuilder()
+        Log.d("writer", "$score")
         stringBuilder.append("$score")
         stringBuilder.append('|')
         for (y in 0 until size) {
@@ -216,6 +215,7 @@ class GameField(private val size: Int) {
         if (data.isNotEmpty()) {
             val mainEntries = data.split("|")
             score = mainEntries[0].toInt()
+            Log.d("reader", "$score")
             val entries = mainEntries[1].split(";")
             for (entry in entries) {
                 val parts = entry.split(",")
@@ -246,7 +246,8 @@ class GameField(private val size: Int) {
     fun setPointAndCheckScore(x:Int, y:Int,color:Char):Int{
         setPoint(x,y,color)
         val moveScore = movementScore(x,y)
-        score += moveScore
+        if(moveScore > 0)
+            score += moveScore
         return moveScore
     }
     fun getRandomBall(): Ball? {

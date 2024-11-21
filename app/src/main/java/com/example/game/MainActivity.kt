@@ -1,5 +1,6 @@
 package com.example.game
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,14 +22,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import java.io.File
 
 
 enum class Difficulty{
@@ -40,15 +44,23 @@ enum class Difficulty{
 // Determines difficulty
 var difficulty:Difficulty = Difficulty.EASY
 
-
 class MainActivity : ComponentActivity() {
+    private lateinit var gameViewModel: GameViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        gameViewModel = GameViewModel()
+        val fieldFileName = "gameField.txt"
+        val file = File(filesDir, fieldFileName)
+        if (file.exists()) {
+            gameViewModel.initGameFieldFromFile(this@MainActivity, fieldFileName)
+        }
+
         setContent {
             GameTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(modifier = Modifier.padding(innerPadding)) {
-                        val gameViewModel = GameViewModel()
                         MessageAndGrid(gameViewModel)
                         GameScreen(gameViewModel)
                     }
@@ -56,7 +68,20 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        val fieldFileName = "gameField.txt"
+        gameViewModel.writeGameFieldToFile(this@MainActivity, fieldFileName)
+    }
+    override fun onStop() {
+        super.onStop()
+        val fieldFileName = "gameField.txt"
+        gameViewModel.writeGameFieldToFile(this@MainActivity, fieldFileName)
+    }
 }
+
+
 
 class GameViewModel : ViewModel() {
     private var _isGameEnd = MutableLiveData(false)
@@ -70,6 +95,21 @@ class GameViewModel : ViewModel() {
     val maxNexBallAmount = 3
 
     private var firstClick: Pair<Int, Int>? = null
+    init {
+        _gameField.value?.apply {}
+    }
+
+    fun initGameFieldFromFile(context: Context, fileName: String){
+        val gameFieldValue = _gameField.value ?: return
+        gameFieldValue.readFromFile(context,fileName)
+        _gameField.value = gameFieldValue.copy()
+        _score.value = gameFieldValue.score
+    }
+    fun writeGameFieldToFile(context: Context, fileName: String){
+        _gameField.value?.score = _score.value!!
+        Log.d("last score", "${_score.value}")
+        _gameField.value?.writeToFile(context,fileName)
+    }
     fun addScore(score:Int){
         val curScore = _score.value
         if (curScore != null){
@@ -86,9 +126,6 @@ class GameViewModel : ViewModel() {
         _score.value = 0
     }
 
-    init {
-        _gameField.value?.apply {}
-    }
 
     fun onCellClick(x: Int, y: Int) {
         val gameFieldValue = _gameField.value ?: return
@@ -110,6 +147,7 @@ class GameViewModel : ViewModel() {
                 val curScore = _score.value
                 if(curScore != null)
                     _score.value = curScore + moveScore
+                Log.d("cur score", "${_score.value}")
             }
             _gameField.value = gameFieldValue.copy()
             firstClick = null
@@ -167,15 +205,81 @@ class GameViewModel : ViewModel() {
 
 }
 
+@Composable
+fun GameScreen(gameViewModel: GameViewModel) {
+    var playerName by remember { mutableStateOf("") }
+    val isGameEnd by gameViewModel.isGameEnd.observeAsState(initial = false)
+
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .padding(16.dp)
+    ) {
+        if (isGameEnd) {
+            SimpleTextInputDialog(
+                showDialog = true,
+                onDismiss = { gameViewModel.resetGame() },
+                onConfirm = { name ->
+                    playerName = name
+                    Log.d("GameScreen", "Player Name: $playerName")
+                    gameViewModel.resetGame()
+                }
+            )
+        }
+
+        MessageAndGrid(gameViewModel)
+    }
+}
 
 @Composable
 fun MessageAndGrid(gameViewModel: GameViewModel) {
     val score by gameViewModel.score.observeAsState(initial = 0)
-    Column {
-        Text(text = "Current Score: $score",
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Current Score: $score",
             style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(16.dp))
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
         GridScreen(gameViewModel)
+        Spacer(modifier = Modifier.height(16.dp))
+        ActionButtons(
+            onDifficultyClick = { Log.d("GameScreen", "Difficulty button clicked") },
+            onRecordsClick = { Log.d("GameScreen", "Records button clicked") },
+            onNewGameClick = { Log.d("GameScreen", "New Game button clicked") }
+        )
+    }
+}
+
+@Composable
+fun ActionButtons(onDifficultyClick: () -> Unit, onRecordsClick: () -> Unit, onNewGameClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Button(
+            onClick = onDifficultyClick,
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Black) // Явный цвет фона кнопки
+        ) {
+            Text(text = "Difficulty", color = Color.White) // Явный цвет текста
+        }
+        Button(
+            onClick = onRecordsClick,
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
+        ) {
+            Text(text = "Records", color = Color.White)
+        }
+        Button(
+            onClick = onNewGameClick,
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
+        ) {
+            Text(text = "New game", color = Color.White)
+        }
     }
 }
 
@@ -184,11 +288,13 @@ fun GridScreen(gameViewModel: GameViewModel) {
     val gameField by gameViewModel.gameField.observeAsState(initial = GameField(9))
     val nextBalls by gameViewModel.nextBalls.observeAsState(initial = mutableListOf())
 
-
     gameViewModel.updateNextBalls(gameViewModel.maxNexBallAmount)
-    gameViewModel.addScore(gameViewModel.placeNextBalls())
-    gameViewModel.updateNextBalls(gameViewModel.maxNexBallAmount)
+    if(gameField.getAmountOfEmptyPoints() ==
+        gameField.getSize()*gameField.getSize()) {
 
+        gameViewModel.addScore(gameViewModel.placeNextBalls())
+        gameViewModel.updateNextBalls(gameViewModel.maxNexBallAmount)
+    }
     val size = 9
     val cellSize = 50.dp
     val radiusCoefficient = 0.75f
@@ -196,7 +302,8 @@ fun GridScreen(gameViewModel: GameViewModel) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(size),
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
+            .heightIn(max = 500.dp)
             .padding(8.dp),
         contentPadding = PaddingValues(0.dp)
     ) {
@@ -302,31 +409,6 @@ fun SimpleTextInputDialog(
     }
 }
 
-@Composable
-fun GameScreen(gameViewModel: GameViewModel) {
-    var playerName by remember { mutableStateOf("") }
-    val isGameEnd by gameViewModel.isGameEnd.observeAsState(initial = false)
-
-    Column {
-        if (isGameEnd) {
-            SimpleTextInputDialog(
-                showDialog = true,
-                onDismiss = { gameViewModel.resetGame() },
-                onConfirm = { name ->
-                    playerName = name
-                    Log.d("GameScreen", "Player Name: $playerName")
-                    gameViewModel.resetGame()
-                }
-            )
-        }
-
-        Button(onClick = { gameViewModel.resetGame() }) {
-            Text(text = "End Game and Enter Name")
-        }
-    }
-}
-
-
 
 
 @Composable
@@ -346,3 +428,9 @@ fun DrawCircle(radiusCoefficient: Float, color: Color) {
         )
     }
 }
+
+
+
+
+
+
