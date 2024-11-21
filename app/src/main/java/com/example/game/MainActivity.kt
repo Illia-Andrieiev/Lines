@@ -130,7 +130,7 @@ class GameViewModel : ViewModel() {
         if (gameFieldValue.getAmountOfEmptyPoints() == 0) {
             _isGameEnd.value = true
         }
-        Log.d("ttt", "${_isGameEnd}")
+        Log.d("ttt", "$_isGameEnd")
     }
 
     fun updateNextBalls(maxBalls: Int) {
@@ -242,47 +242,6 @@ fun GridScreen(gameViewModel: GameViewModel) {
 }
 
 @Composable
-fun GameScreen(gameViewModel: GameViewModel) {
-    var showDialog by remember { mutableStateOf(false) }
-    var playerName by remember { mutableStateOf("") }
-    val isGameEnd by gameViewModel.isGameEnd.observeAsState(initial = false)
-
-    Column {
-        if (isGameEnd) {
-            SimpleTextInputDialog(
-                showDialog = true,
-                onDismiss = {
-                    showDialog = false
-                    gameViewModel.resetGame()},
-                onConfirm = { name ->
-                    playerName = name
-                    Log.d("GameScreen", "Player Name: $playerName")
-                    showDialog = false
-                    gameViewModel.resetGame()
-
-                }
-            )
-        }
-
-        Button(onClick = { showDialog = true }) {
-            Text(text = "End Game and Enter Name")
-        }
-    }
-
-    if (showDialog) {
-        SimpleTextInputDialog(
-            showDialog = showDialog,
-            onDismiss = { showDialog = false },
-            onConfirm = { name ->
-                playerName = name
-                Log.d("GameScreen", "Player Name: $playerName")
-                showDialog = false
-            }
-        )
-    }
-}
-
-@Composable
 fun SimpleTextInputDialog(
     showDialog: Boolean,
     onDismiss: () -> Unit,
@@ -290,6 +249,7 @@ fun SimpleTextInputDialog(
 ) {
     if (showDialog) {
         var text by remember { mutableStateOf("") }
+        var showError by remember { mutableStateOf(false) }
 
         AlertDialog(
             onDismissRequest = onDismiss,
@@ -303,12 +263,19 @@ fun SimpleTextInputDialog(
                         onValueChange = { text = it },
                         label = { Text(text = "Name") }
                     )
+                    if (showError) {
+                        Text(text = "Name cannot be empty", color = Color.Red)
+                    }
                 }
             },
             confirmButton = {
                 Button(onClick = {
-                    onConfirm(text)
-                    onDismiss()
+                    if (text.isNotBlank()) {
+                        onConfirm(text)
+                        onDismiss()
+                    } else {
+                        showError = true
+                    }
                 }) {
                     Text("OK")
                 }
@@ -321,6 +288,32 @@ fun SimpleTextInputDialog(
         )
     }
 }
+
+@Composable
+fun GameScreen(gameViewModel: GameViewModel) {
+    var playerName by remember { mutableStateOf("") }
+    val isGameEnd by gameViewModel.isGameEnd.observeAsState(initial = false)
+
+    Column {
+        if (isGameEnd) {
+            SimpleTextInputDialog(
+                showDialog = true,
+                onDismiss = { gameViewModel.resetGame() },
+                onConfirm = { name ->
+                    playerName = name
+                    Log.d("GameScreen", "Player Name: $playerName")
+                    gameViewModel.resetGame()
+                }
+            )
+        }
+
+        Button(onClick = { gameViewModel.resetGame() }) {
+            Text(text = "End Game and Enter Name")
+        }
+    }
+}
+
+
 
 
 @Composable
