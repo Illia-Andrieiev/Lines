@@ -29,6 +29,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -49,7 +50,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        readDifficulty()
         gameViewModel = GameViewModel()
         val fieldFileName = "gameField.txt"
         val file = File(filesDir, fieldFileName)
@@ -62,7 +63,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(modifier = Modifier.padding(innerPadding)) {
                         MessageAndGrid(gameViewModel)
-                        GameScreen(gameViewModel)
+                        EndGameScreen(gameViewModel)
                     }
                 }
             }
@@ -71,13 +72,39 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        writeDifficulty()
         val fieldFileName = "gameField.txt"
         gameViewModel.writeGameFieldToFile(this@MainActivity, fieldFileName)
     }
     override fun onStop() {
         super.onStop()
+        writeDifficulty()
         val fieldFileName = "gameField.txt"
         gameViewModel.writeGameFieldToFile(this@MainActivity, fieldFileName)
+    }
+    private fun writeDifficulty(){
+        val difficultyFileName = "currentDifficulty.txt"
+        val dif:Char = when(difficulty){
+            Difficulty.EASY -> 'e'
+            Difficulty.MEDIUM -> 'm'
+            Difficulty.HARD -> 'h'
+        }
+        val fileWriter = FileWriter()
+        fileWriter.writeToFile(this@MainActivity, difficultyFileName, dif.toString())
+    }
+    private fun readDifficulty(){
+        val difficultyFileName = "currentDifficulty.txt"
+        val file = File(this@MainActivity.filesDir, difficultyFileName)
+        if (!file.exists())
+            difficulty = Difficulty.EASY
+        else{
+            val fileWriter = FileWriter()
+            when(fileWriter.readFromFile(this@MainActivity, difficultyFileName)[0]){
+                'e' -> difficulty = Difficulty.EASY
+                'm' -> difficulty = Difficulty.MEDIUM
+                'h' -> difficulty = Difficulty.HARD
+            }
+        }
     }
 }
 
@@ -206,21 +233,27 @@ class GameViewModel : ViewModel() {
 }
 
 @Composable
-fun GameScreen(gameViewModel: GameViewModel) {
+fun EndGameScreen(gameViewModel: GameViewModel) {
     var playerName by remember { mutableStateOf("") }
     val isGameEnd by gameViewModel.isGameEnd.observeAsState(initial = false)
-
+    val context =  LocalContext.current
     Column(modifier = Modifier
         .fillMaxSize()
         .padding(16.dp)
     ) {
         if (isGameEnd) {
-            SimpleTextInputDialog(
+            EndGameDialog(
                 showDialog = true,
                 onDismiss = { gameViewModel.resetGame() },
                 onConfirm = { name ->
                     playerName = name
                     Log.d("GameScreen", "Player Name: $playerName")
+                    gameViewModel.score.value?.let {
+                        updateRecordsFile(
+                           context, playerName ,
+                            it
+                        )
+                    }
                     gameViewModel.resetGame()
                 }
             )
@@ -246,15 +279,20 @@ fun MessageAndGrid(gameViewModel: GameViewModel) {
         GridScreen(gameViewModel)
         Spacer(modifier = Modifier.height(16.dp))
         ActionButtons(
-            onDifficultyClick = { Log.d("GameScreen", "Difficulty button clicked") },
-            onRecordsClick = { Log.d("GameScreen", "Records button clicked") },
+            gameViewModel = gameViewModel,
             onNewGameClick = { Log.d("GameScreen", "New Game button clicked") }
         )
     }
 }
 
 @Composable
-fun ActionButtons(onDifficultyClick: () -> Unit, onRecordsClick: () -> Unit, onNewGameClick: () -> Unit) {
+fun ActionButtons(gameViewModel: GameViewModel, onNewGameClick: () -> Unit) {
+    var showNewGameDialog by remember { mutableStateOf(false) }
+    var showRecordsDialog by remember { mutableStateOf(false) }
+    var showDifficultyDialog by remember { mutableStateOf(false) }
+    var showConfirmDifficultyChangeDialog by remember { mutableStateOf(false) }
+    var selectedDifficulty by remember { mutableStateOf(difficulty) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -263,25 +301,182 @@ fun ActionButtons(onDifficultyClick: () -> Unit, onRecordsClick: () -> Unit, onN
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Button(
-            onClick = onDifficultyClick,
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Black) // Явный цвет фона кнопки
+            onClick = { showDifficultyDialog = true },
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
         ) {
-            Text(text = "Difficulty", color = Color.White) // Явный цвет текста
+            Text(text = "Difficulty", color = Color.White)
         }
         Button(
-            onClick = onRecordsClick,
+            onClick = { showRecordsDialog = true },
             colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
         ) {
             Text(text = "Records", color = Color.White)
         }
         Button(
-            onClick = onNewGameClick,
+            onClick = { showNewGameDialog = true },
             colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
         ) {
             Text(text = "New game", color = Color.White)
         }
     }
+
+    ConfirmNewGameDialog(
+        showDialog = showNewGameDialog,
+        onDismiss = { showNewGameDialog = false },
+        onConfirm = {
+            gameViewModel.resetGame()
+            onNewGameClick()
+        }
+    )
+
+    RecordsDialog(
+        showDialog = showRecordsDialog,
+        onDismiss = { showRecordsDialog = false }
+    )
+
+    DifficultyDialog(
+        showDialog = showDifficultyDialog,
+        onDismiss = { showDifficultyDialog = false },
+        onConfirm = { newDifficulty ->
+            if (difficulty != newDifficulty) {
+                selectedDifficulty = newDifficulty
+                showConfirmDifficultyChangeDialog = true
+            }
+        }
+    )
+
+    ConfirmDifficultyChangeDialog(
+        showDialog = showConfirmDifficultyChangeDialog,
+        onDismiss = { showConfirmDifficultyChangeDialog = false },
+        onConfirm = {
+            difficulty = selectedDifficulty
+            gameViewModel.resetGame()
+            Log.d("ActionButtons", "Difficulty set to: $difficulty")
+        }
+    )
 }
+
+
+@Composable
+fun ConfirmDifficultyChangeDialog(showDialog: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(text = "Change Difficulty") },
+            text = { Text("Are you sure you want to change the difficulty? This will reset your current progress.") },
+            confirmButton = {
+                Button(onClick = {
+                    onConfirm()
+                    onDismiss()
+                }) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                Button(onClick = onDismiss) {
+                    Text("No")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun DifficultyDialog(showDialog: Boolean, onDismiss: () -> Unit, onConfirm: (Difficulty) -> Unit) {
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(text = "Select new Difficulty.") },
+            text = {
+                Column {
+                    Button(onClick = { onConfirm(Difficulty.EASY); onDismiss() }) {
+                        Text(text = "Easy")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { onConfirm(Difficulty.MEDIUM); onDismiss() }) {
+                        Text(text = "Medium")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { onConfirm(Difficulty.HARD); onDismiss() }) {
+                        Text(text = "Hard")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+
+fun readRecordsFromFile(context: Context, fileName: String): List<Pair<String, Int>> {
+    val file = File(context.filesDir, fileName)
+    if (!file.exists()) return emptyList()
+    val fileWriter = FileWriter()
+    return fileWriter.readFromFile(context, fileName).split("\n").filter { it.isNotEmpty() }
+        .map { line ->
+            val parts = line.split(" - ")
+            parts[0] to parts[1].toInt()
+        }
+}
+
+@Composable
+fun RecordsDialog(showDialog: Boolean, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val records = readRecordsFromFile(context, "records.txt")
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(text = "High Scores") },
+            text = {
+                Column {
+                    if (records.isEmpty()) {
+                        Text(text = "No records at the moment.")
+                    } else {
+                        records.forEach { record ->
+                            Text(text = "${record.first}: ${record.second}")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = onDismiss) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+}
+
+
+@Composable
+fun ConfirmNewGameDialog(showDialog: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(text = "New Game") },
+            text = { Text("Are you sure you want to start a new game? This will reset your current progress.") },
+            confirmButton = {
+                Button(onClick = {
+                    onConfirm()
+                    onDismiss()
+                }) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                Button(onClick = onDismiss) {
+                    Text("No")
+                }
+            }
+        )
+    }
+}
+
 
 @Composable
 fun GridScreen(gameViewModel: GameViewModel) {
@@ -362,7 +557,7 @@ fun GridScreen(gameViewModel: GameViewModel) {
 }
 
 @Composable
-fun SimpleTextInputDialog(
+fun EndGameDialog(
     showDialog: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
@@ -432,5 +627,28 @@ fun DrawCircle(radiusCoefficient: Float, color: Color) {
 
 
 
+fun updateRecordsFile(context: Context, playerName: String, playerScore: Int) {
+    val fileName = "records.txt"
+    val file = File(context.filesDir, fileName)
+    val fileWriter = FileWriter()
+    val records = if (file.exists()) {
+        fileWriter.readFromFile(context, fileName).split("\n").filter { it.isNotEmpty() }
+            .map { line ->
+                val parts = line.split(" - ")
+                parts[0] to parts[1].toInt()
+            }.toMutableList()
+    } else {
+        mutableListOf()
+    }
 
+    records.add(playerName to playerScore)
+    records.sortByDescending { it.second }
+
+    if (records.size > 10) {
+        records.removeAt(records.size - 1)
+    }
+
+    val updatedRecords = records.joinToString("\n") { "${it.first} - ${it.second}" }
+    fileWriter.writeToFile(context, fileName, updatedRecords)
+}
 
