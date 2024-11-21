@@ -1,8 +1,6 @@
 package com.example.game
 
 import android.content.Context
-import android.util.Log
-import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.random.Random
 
@@ -17,6 +15,14 @@ class GameField(private val size: Int) {
             Coordinates(index % size, index / size)
         }
     private var score = 0
+
+    init {
+        for (i in 0 until size) {
+            for (j in 0 until size) {
+                field[i][j] = '0' // by default all points are empty
+            }
+        }
+    }
 
     fun getScore():Int{
         return score
@@ -38,13 +44,7 @@ class GameField(private val size: Int) {
     fun getSize():Int{
         return size
     }
-    init {
-        for (i in 0 until size) {
-            for (j in 0 until size) {
-                field[i][j] = '0' // by default all points are empty
-            }
-        }
-    }
+
 
     // return color of ball at selected point
     fun getPoint(x: Int, y: Int): Char {
@@ -240,7 +240,10 @@ class GameField(private val size: Int) {
         }
         return '0'
     }
-
+    fun setPointAndCheckScore(x:Int, y:Int,color:Char):Int{
+        setPoint(x,y,color)
+        return movementScore(x,y)
+    }
     fun getRandomBall(): Ball? {
         if (emptyPoints.isEmpty())
             return null

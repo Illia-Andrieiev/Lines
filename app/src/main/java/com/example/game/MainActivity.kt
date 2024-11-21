@@ -38,7 +38,7 @@ enum class Difficulty{
 }
 
 // Determines difficulty
-var difficulty:Difficulty = Difficulty.MEDIUM
+var difficulty:Difficulty = Difficulty.EASY
 
 
 class MainActivity : ComponentActivity() {
@@ -70,13 +70,18 @@ class GameViewModel : ViewModel() {
     val maxNexBallAmount = 3
 
     private var firstClick: Pair<Int, Int>? = null
-
+    fun addScore(score:Int){
+        val curScore = _score.value
+        if (curScore != null){
+            _score.value = curScore + score
+        }
+    }
     fun resetGame(){
         _isGameEnd.value = false
         _gameField.value?.clear()
         _nextBalls.value?.clear()
         updateNextBalls(maxNexBallAmount)
-        placeNextBalls()
+        addScore(placeNextBalls())
         updateNextBalls(maxNexBallAmount)
         _score.value = 0
     }
@@ -99,7 +104,7 @@ class GameViewModel : ViewModel() {
             Log.d("GridScreen", "Move Score: $moveScore")
             if (moveScore != -1) {
                 if (moveScore == 0) {
-                    placeNextBalls()
+                    addScore(placeNextBalls())
                     Log.d("GridScreen", "count of empty points: ${gameField.value?.getAmountOfEmptyPoints()}")
                 }
                 val curScore = _score.value
@@ -111,26 +116,34 @@ class GameViewModel : ViewModel() {
         }
         updateNextBalls(maxNexBallAmount)
     }
-    fun placeNextBalls() {
-        val gameFieldValue = _gameField.value ?: return
-        val nextBallsValue = _nextBalls.value ?: return
+    fun placeNextBalls():Int {
+        var computerScore = 0
+        val gameFieldValue = _gameField.value ?: return 0
+        val nextBallsValue = _nextBalls.value ?: return 0
         for (i in nextBallsValue.size - 1 downTo 0) {
             if (gameFieldValue.getPoint(nextBallsValue[i].x, nextBallsValue[i].y) == '0') {
-                gameFieldValue.setPoint(nextBallsValue[i].x, nextBallsValue[i].y, nextBallsValue[i].color)
+                val addScore = gameFieldValue.setPointAndCheckScore(nextBallsValue[i].x,
+                    nextBallsValue[i].y, nextBallsValue[i].color)
+                if(addScore > 0)
+                    computerScore += addScore
             } else {
                 val newBall = gameFieldValue.getRandomBall()
                 if (newBall != null) {
-                    gameFieldValue.setPoint(newBall.x, newBall.y, newBall.color)
-                }
+                    val addScore = gameFieldValue.setPointAndCheckScore(newBall.x,
+                        newBall.y, newBall.color)
+                    if(addScore > 0)
+                        computerScore += addScore                }
             }
             nextBallsValue.removeAt(i)
         }
-        _gameField.value = gameFieldValue.copy() // Обновить состояние игрового поля
+        _gameField.value = gameFieldValue.copy()
         Log.d("ttt", "${gameFieldValue.getAmountOfEmptyPoints()}")
         if (gameFieldValue.getAmountOfEmptyPoints() == 0) {
             _isGameEnd.value = true
         }
         Log.d("ttt", "$_isGameEnd")
+
+        return computerScore
     }
 
     fun updateNextBalls(maxBalls: Int) {
@@ -173,7 +186,7 @@ fun GridScreen(gameViewModel: GameViewModel) {
 
 
     gameViewModel.updateNextBalls(gameViewModel.maxNexBallAmount)
-    gameViewModel.placeNextBalls()
+    gameViewModel.addScore(gameViewModel.placeNextBalls())
     gameViewModel.updateNextBalls(gameViewModel.maxNexBallAmount)
 
     val size = 9
