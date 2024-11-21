@@ -197,7 +197,8 @@ class GameField(private val size: Int) {
     fun writeToFile(context: Context, fileName: String) {
         val fileWriter = FileWriter()
         val stringBuilder = StringBuilder()
-
+        stringBuilder.append("$score")
+        stringBuilder.append('|')
         for (y in 0 until size) {
             for (x in 0 until size) {
                 stringBuilder.append("$x,$y,${field[y][x]}")
@@ -213,7 +214,9 @@ class GameField(private val size: Int) {
         val fileWriter = FileWriter()
         val data = fileWriter.readFromFile(context, fileName)
         if (data.isNotEmpty()) {
-            val entries = data.split(";")
+            val mainEntries = data.split("|")
+            score = mainEntries[0].toInt()
+            val entries = mainEntries[1].split(";")
             for (entry in entries) {
                 val parts = entry.split(",")
                 if (parts.size == 3) {
@@ -242,7 +245,9 @@ class GameField(private val size: Int) {
     }
     fun setPointAndCheckScore(x:Int, y:Int,color:Char):Int{
         setPoint(x,y,color)
-        return movementScore(x,y)
+        val moveScore = movementScore(x,y)
+        score += moveScore
+        return moveScore
     }
     fun getRandomBall(): Ball? {
         if (emptyPoints.isEmpty())
