@@ -1,6 +1,7 @@
 package com.example.game
 
 import android.content.Context
+import android.util.Log
 import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.random.Random
@@ -10,12 +11,13 @@ data class Ball(val x:Int, val y:Int, val color:Char)
 
 class GameField(private val size: Int) {
     // our game field
-    private val field: Array<CharArray> = Array(size) { CharArray(size) }
-    private val emptyPoints: MutableList<Coordinates> =
+    private var field: Array<CharArray> = Array(size) { CharArray(size) }
+    private var emptyPoints: MutableList<Coordinates> =
         MutableList(size * size) { index ->
             Coordinates(index % size, index / size)
         }
     private var score = 0
+
     fun getScore():Int{
         return score
     }
@@ -238,14 +240,7 @@ class GameField(private val size: Int) {
         }
         return '0'
     }
-    fun placeRandomBall(): Boolean {
-        if (emptyPoints.isEmpty())
-            return false
-        val randomIndex = Random.nextInt(emptyPoints.size)
-        val newBallCoordinates = emptyPoints.removeAt(randomIndex)
-        setPoint(newBallCoordinates.y, newBallCoordinates.x, getRandomColor())
-        return true
-    }
+
     fun getRandomBall(): Ball? {
         if (emptyPoints.isEmpty())
             return null
@@ -253,5 +248,17 @@ class GameField(private val size: Int) {
         val newBallCoordinates = emptyPoints[randomIndex]
         return Ball(newBallCoordinates.y, newBallCoordinates.x, getRandomColor())
     }
-
+    fun clear(){
+        field = Array(size) { CharArray(size) }
+        emptyPoints = MutableList(size * size) { index ->
+                Coordinates(index % size, index / size)
+            }
+        score = 0
+        for (i in 0 until size) {
+            for (j in 0 until size) {
+                field[i][j] = '0' // by default all points are empty
+            }
+        }
+    }
 }
+

@@ -19,9 +19,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.ui.unit.times
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -45,7 +49,8 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(modifier = Modifier.padding(innerPadding)) {
                         val gameViewModel = GameViewModel()
-                        GridScreen(gameViewModel)
+                        MessageAndGrid(gameViewModel)
+                        GameScreen(gameViewModel)
                     }
                 }
             }
@@ -54,12 +59,27 @@ class MainActivity : ComponentActivity() {
 }
 
 class GameViewModel : ViewModel() {
+    private var _isGameEnd = MutableLiveData(false)
+    var isGameEnd:LiveData<Boolean> = _isGameEnd
     private val _gameField = MutableLiveData(GameField(9))
     val gameField: LiveData<GameField> = _gameField
     private val _nextBalls = MutableLiveData<MutableList<Ball>>(mutableListOf())
     val nextBalls: LiveData<MutableList<Ball>> = _nextBalls
+    private val _score = MutableLiveData(0)
+    val score: LiveData<Int> = _score
     val maxNexBallAmount = 3
+
     private var firstClick: Pair<Int, Int>? = null
+
+    fun resetGame(){
+        _isGameEnd.value = false
+        _gameField.value?.clear()
+        _nextBalls.value?.clear()
+        updateNextBalls(maxNexBallAmount)
+        placeNextBalls()
+        updateNextBalls(maxNexBallAmount)
+        _score.value = 0
+    }
 
     init {
         _gameField.value?.apply {}
@@ -78,44 +98,44 @@ class GameViewModel : ViewModel() {
 
             Log.d("GridScreen", "Move Score: $moveScore")
             if (moveScore != -1) {
-                if(moveScore == 0){
+                if (moveScore == 0) {
                     placeNextBalls()
                     Log.d("GridScreen", "count of empty points: ${gameField.value?.getAmountOfEmptyPoints()}")
                 }
+                val curScore = _score.value
+                if(curScore != null)
+                    _score.value = curScore + moveScore
             }
             _gameField.value = gameFieldValue.copy()
             firstClick = null
         }
         updateNextBalls(maxNexBallAmount)
     }
-    fun placeNextBalls(){
+    fun placeNextBalls() {
         val gameFieldValue = _gameField.value ?: return
-        val nextBallsValue = _nextBalls.value ?:return
+        val nextBallsValue = _nextBalls.value ?: return
         for (i in nextBallsValue.size - 1 downTo 0) {
-            if(gameFieldValue.getPoint(nextBallsValue[i].x,
-                    nextBallsValue[i].y) == '0') {
-                gameFieldValue.setPoint(
-                    nextBallsValue[i].x,
-                    nextBallsValue[i].y,
-                    nextBallsValue[i].color
-                )
-
-            } else{
-                val newBall = gameFieldValue.getRandomBall();
-                if(newBall != null){
-                    gameFieldValue.setPoint(
-                        newBall.x,
-                        newBall.y,
-                        newBall.color
-                    )
+            if (gameFieldValue.getPoint(nextBallsValue[i].x, nextBallsValue[i].y) == '0') {
+                gameFieldValue.setPoint(nextBallsValue[i].x, nextBallsValue[i].y, nextBallsValue[i].color)
+            } else {
+                val newBall = gameFieldValue.getRandomBall()
+                if (newBall != null) {
+                    gameFieldValue.setPoint(newBall.x, newBall.y, newBall.color)
                 }
             }
             nextBallsValue.removeAt(i)
         }
+        _gameField.value = gameFieldValue.copy() // Обновить состояние игрового поля
+        Log.d("ttt", "${gameFieldValue.getAmountOfEmptyPoints()}")
+        if (gameFieldValue.getAmountOfEmptyPoints() == 0) {
+            _isGameEnd.value = true
+        }
+        Log.d("ttt", "${_isGameEnd}")
     }
-    fun updateNextBalls(maxBalls:Int){
+
+    fun updateNextBalls(maxBalls: Int) {
         val gameFieldValue = _gameField.value ?: return
-        val nextBallsValue = _nextBalls.value ?:return
+        val nextBallsValue = _nextBalls.value ?: return
         // Remove balls, if on their place ball already exist
         for (i in nextBallsValue.size - 1 downTo 0) {
             if (gameFieldValue.getPoint(nextBallsValue[i].x, nextBallsValue[i].y) != '0') {
@@ -123,29 +143,42 @@ class GameViewModel : ViewModel() {
             }
         }
 
-        while(gameFieldValue.getAmountOfEmptyPoints() > 0 && nextBallsValue.size < maxBalls) {
+        while (gameFieldValue.getAmountOfEmptyPoints() > 0 && nextBallsValue.size < maxBalls) {
             val newBall = gameFieldValue.getRandomBall()
             if (newBall != null) {
                 nextBallsValue.add(newBall)
             }
         }
         _nextBalls.value = nextBallsValue.toMutableList()
-
     }
 
+}
+
+
+@Composable
+fun MessageAndGrid(gameViewModel: GameViewModel) {
+    val score by gameViewModel.score.observeAsState(initial = 0)
+    Column {
+        Text(text = "Current Score: $score",
+            style = MaterialTheme.typography.headlineLarge,
+            modifier = Modifier.padding(16.dp))
+        GridScreen(gameViewModel)
+    }
 }
 
 @Composable
 fun GridScreen(gameViewModel: GameViewModel) {
     val gameField by gameViewModel.gameField.observeAsState(initial = GameField(9))
-    val nextBalls by gameViewModel.nextBalls.observeAsState(initial = mutableListOf<Ball>())
+    val nextBalls by gameViewModel.nextBalls.observeAsState(initial = mutableListOf())
+
+
     gameViewModel.updateNextBalls(gameViewModel.maxNexBallAmount)
     gameViewModel.placeNextBalls()
     gameViewModel.updateNextBalls(gameViewModel.maxNexBallAmount)
 
     val size = 9
     val cellSize = 50.dp
-    val radiusCoef = 0.75f
+    val radiusCoefficient = 0.75f
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(size),
@@ -172,13 +205,13 @@ fun GridScreen(gameViewModel: GameViewModel) {
                 if (symbol != '0') {
                     // Draw the balls of the current field point
                     when (symbol) {
-                        'r' -> DrawCircle(radiusCoefficient = radiusCoef, color = Color.Red)
-                        'b' -> DrawCircle(radiusCoefficient = radiusCoef, color = Color.Black)
-                        'B' -> DrawCircle(radiusCoefficient = radiusCoef, color = Color.Blue)
-                        'y' -> DrawCircle(radiusCoefficient = radiusCoef, color = Color.Yellow)
-                        'g' -> DrawCircle(radiusCoefficient = radiusCoef, color = Color.Green)
-                        'm' -> DrawCircle(radiusCoefficient = radiusCoef, color = Color.Magenta)
-                        'c' -> DrawCircle(radiusCoefficient = radiusCoef, color = Color.Cyan)
+                        'r' -> DrawCircle(radiusCoefficient = radiusCoefficient, color = Color.Red)
+                        'b' -> DrawCircle(radiusCoefficient = radiusCoefficient, color = Color.Black)
+                        'B' -> DrawCircle(radiusCoefficient = radiusCoefficient, color = Color.Blue)
+                        'y' -> DrawCircle(radiusCoefficient = radiusCoefficient, color = Color.Yellow)
+                        'g' -> DrawCircle(radiusCoefficient = radiusCoefficient, color = Color.Green)
+                        'm' -> DrawCircle(radiusCoefficient = radiusCoefficient, color = Color.Magenta)
+                        'c' -> DrawCircle(radiusCoefficient = radiusCoefficient, color = Color.Cyan)
                     }
                 } else {
                     // If difficulty is hard, do not show future balls
@@ -199,12 +232,93 @@ fun GridScreen(gameViewModel: GameViewModel) {
 
                                 }
                             }
-                            DrawCircle(radiusCoefficient = radiusCoef/2.5f, color = color)
+                            DrawCircle(radiusCoefficient = radiusCoefficient/2.5f, color = color)
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun GameScreen(gameViewModel: GameViewModel) {
+    var showDialog by remember { mutableStateOf(false) }
+    var playerName by remember { mutableStateOf("") }
+    val isGameEnd by gameViewModel.isGameEnd.observeAsState(initial = false)
+
+    Column {
+        if (isGameEnd) {
+            SimpleTextInputDialog(
+                showDialog = true,
+                onDismiss = {
+                    showDialog = false
+                    gameViewModel.resetGame()},
+                onConfirm = { name ->
+                    playerName = name
+                    Log.d("GameScreen", "Player Name: $playerName")
+                    showDialog = false
+                    gameViewModel.resetGame()
+
+                }
+            )
+        }
+
+        Button(onClick = { showDialog = true }) {
+            Text(text = "End Game and Enter Name")
+        }
+    }
+
+    if (showDialog) {
+        SimpleTextInputDialog(
+            showDialog = showDialog,
+            onDismiss = { showDialog = false },
+            onConfirm = { name ->
+                playerName = name
+                Log.d("GameScreen", "Player Name: $playerName")
+                showDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun SimpleTextInputDialog(
+    showDialog: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    if (showDialog) {
+        var text by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(text = "Enter your name") },
+            text = {
+                Column {
+                    Text(text = "Please enter your name below:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        label = { Text(text = "Name") }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    onConfirm(text)
+                    onDismiss()
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { onDismiss() }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
