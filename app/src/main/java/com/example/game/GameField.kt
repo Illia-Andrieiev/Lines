@@ -15,6 +15,13 @@ class GameField(private val size: Int) {
         MutableList(size * size) { index ->
             Coordinates(index % size, index / size)
         }
+    private var score = 0
+    fun getScore():Int{
+        return score
+    }
+    fun getAmountOfEmptyPoints():Int{
+        return emptyPoints.size
+    }
     fun copy(): GameField {
         val newGameField = GameField(this.size)
         for (i in 0 until size) {
@@ -120,7 +127,9 @@ class GameField(private val size: Int) {
         if(field[fromY][fromX] != '0' && isPathExist(fromX,fromY,toX,toY)) {
             setPoint(toX, toY, field[fromY][fromX])
             setPoint(fromX, fromY,'0')
-            return movementScore(toX, toY)
+            val curScore = movementScore(toX, toY)
+            score += curScore
+            return curScore
         }
         return -1
     }
