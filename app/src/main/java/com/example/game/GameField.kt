@@ -5,12 +5,13 @@ import android.util.Log
 import kotlin.math.pow
 import kotlin.random.Random
 
-data class Coordinates(val x:Int, val y:Int)
-data class Ball(val x:Int, val y:Int, val color:Char)
+data class Coordinates(val x: Int, val y: Int)
+data class Ball(val x: Int, val y: Int, val color: Char)
 
 class GameField(private val size: Int) {
-    // our game field
+    // Our game field represented as a 2D array of characters
     private var field: Array<CharArray> = Array(size) { CharArray(size) }
+    // List of empty points on the field
     private var emptyPoints: MutableList<Coordinates> =
         MutableList(size * size) { index ->
             Coordinates(index % size, index / size)
@@ -18,16 +19,20 @@ class GameField(private val size: Int) {
     var score = 0
 
     init {
+        // Initialize the field with '0' to represent empty points
         for (i in 0 until size) {
             for (j in 0 until size) {
-                field[i][j] = '0' // by default all points are empty
+                field[i][j] = '0' // By default, all points are empty
             }
         }
     }
 
-    fun getAmountOfEmptyPoints():Int{
+    // Get the number of empty points
+    fun getAmountOfEmptyPoints(): Int {
         return emptyPoints.size
     }
+
+    // Create a copy of the current GameField
     fun copy(): GameField {
         val newGameField = GameField(this.size)
         for (i in 0 until size) {
@@ -39,27 +44,30 @@ class GameField(private val size: Int) {
         newGameField.emptyPoints.addAll(this.emptyPoints)
         return newGameField
     }
-    fun getSize():Int{
+
+    // Get the size of the field
+    fun getSize(): Int {
         return size
     }
 
-
-    // return color of ball at selected point
+    // Return the color of the ball at the selected point
     fun getPoint(x: Int, y: Int): Char {
-        if(x >= size || y >= size)
+        if (x >= size || y >= size)
             return '0'
         return field[y][x]
     }
 
-    // change state of current point and manage emptyPoints
+    // Change the state of the current point and manage emptyPoints list
     fun setPoint(x: Int, y: Int, color: Char) {
         val currentColor = field[y][x]
         val coordinates = Coordinates(y, x)
 
+        // If the point was empty and now is not, remove it from emptyPoints
         if (currentColor == '0' && color != '0') {
             emptyPoints.remove(coordinates)
         }
 
+        // If the point was not empty and now is, add it to emptyPoints
         if (currentColor != '0' && color == '0' && !emptyPoints.contains(coordinates)) {
             emptyPoints.add(coordinates)
         }
@@ -67,32 +75,33 @@ class GameField(private val size: Int) {
         field[y][x] = color
     }
 
+    // Check if there is a path from one point to another using Depth-First Search (DFS)
     private fun isPathExist(fromX: Int, fromY: Int, toX: Int, toY: Int): Boolean {
-        // check out of bounds
+        // Check out of bounds
         if (fromX < 0 || fromX >= size || fromY < 0 || fromY >= size ||
             toX < 0 || toX >= size || toY < 0 || toY >= size) {
             return false
         }
 
-        // is end point empty
+        // Ensure the end point is empty
         if (field[toY][toX] != '0') {
             return false
         }
 
-        // visited points
+        // Array to keep track of visited points
         val visited = Array(size) { BooleanArray(size) }
 
-        // support func for DFS
+        // Support function for DFS
         fun dfs(x: Int, y: Int): Boolean {
-            // if reach destination
+            // If destination is reached
             if (x == toX && y == toY) {
                 return true
             }
 
-            // mark current as viewed
+            // Mark current point as visited
             visited[y][x] = true
 
-            // directions of movements
+            // Possible directions of movement: up, down, left, right
             val directions = arrayOf(
                 intArrayOf(-1, 0),
                 intArrayOf(1, 0),
@@ -100,12 +109,12 @@ class GameField(private val size: Int) {
                 intArrayOf(0, 1)
             )
 
-            // step for all directions
+            // Attempt to move in each direction
             for (dir in directions) {
                 val newX = x + dir[1]
                 val newY = y + dir[0]
 
-                // Check out of bounds and if point aleady visited
+                // Check out of bounds and if the point has been visited
                 if (newX in 0 until size && newY in 0 until size &&
                     field[newY][newX] == '0' && !visited[newY][newX]) {
                     if (dfs(newX, newY)) {
@@ -115,24 +124,29 @@ class GameField(private val size: Int) {
             }
             return false
         }
+
+        // Start DFS from the initial point
         return dfs(fromX, fromY)
     }
 
-    // move ball, if it exit and path exist from one point, to another.
-    fun moveBall(fromX:Int,fromY:Int,toX:Int,toY:Int):Int{
-        if(fromX<0 || fromX >=size||fromY<0||fromY>=size||
-            toX<0||toX>=size||toY<0||toY>=size){
+    // Move a ball if it exists and there is a path from one point to another
+    fun moveBall(fromX: Int, fromY: Int, toX: Int, toY: Int): Int {
+        if (fromX < 0 || fromX >= size || fromY < 0 || fromY >= size ||
+            toX < 0 || toX >= size || toY < 0 || toY >= size) {
             return -1
         }
-        if(field[fromY][fromX] != '0' && isPathExist(fromX,fromY,toX,toY)) {
+
+        if (field[fromY][fromX] != '0' && isPathExist(fromX, fromY, toX, toY)) {
             setPoint(toX, toY, field[fromY][fromX])
-            setPoint(fromX, fromY,'0')
+            setPoint(fromX, fromY, '0')
             val curScore = movementScore(toX, toY)
             score += curScore
             return curScore
         }
         return -1
     }
+
+    // Calculate score based on the movement of a ball
     private fun movementScore(x: Int, y: Int): Int {
         val targetChar = field[y][x]
         if (targetChar == '0') return 0
@@ -146,6 +160,7 @@ class GameField(private val size: Int) {
         var maxLineLen = 0
         var maxLineCoordinates: List<Coordinates> = emptyList()
 
+        // Iterate over each direction
         for (dir in directions) {
             val lineCoordinates = mutableListOf<Coordinates>()
             lineCoordinates.add(Coordinates(x, y))
@@ -163,7 +178,7 @@ class GameField(private val size: Int) {
                 }
             }
 
-            // Check in another direction
+            // Check in the opposite direction
             i = 1
             while (true) {
                 val newX = x - i * dir[0]
@@ -176,12 +191,14 @@ class GameField(private val size: Int) {
                 }
             }
 
+            // Update maximum line length and coordinates
             if (lineCoordinates.size > maxLineLen) {
                 maxLineLen = lineCoordinates.size
                 maxLineCoordinates = lineCoordinates
             }
         }
 
+        // If a line of 5 or more is formed, clear the line and calculate score
         if (maxLineLen >= 5) {
             for (coordinate in maxLineCoordinates) {
                 setPoint(coordinate.x, coordinate.y, '0')
@@ -192,6 +209,7 @@ class GameField(private val size: Int) {
         return 0
     }
 
+    // Write the current state of the game to a file
     fun writeToFile(context: Context, fileName: String) {
         val fileWriter = FileWriter()
         val stringBuilder = StringBuilder()
@@ -209,6 +227,8 @@ class GameField(private val size: Int) {
         val data = stringBuilder.toString()
         fileWriter.writeToFile(context, fileName, data)
     }
+
+    // Read the state of the game from a file
     fun readFromFile(context: Context, fileName: String) {
         val fileWriter = FileWriter()
         val data = fileWriter.readFromFile(context, fileName)
@@ -230,44 +250,54 @@ class GameField(private val size: Int) {
             }
         }
     }
-    private fun getRandomColor():Char{
+    // Function to get a random color character for the ball
+    private fun getRandomColor(): Char {
         val randomIndex = Random.nextInt(7)
-        when(randomIndex){
-            0 -> return 'r'
-            1 -> return 'b'
-            2 -> return 'B'
-            3 -> return 'g'
-            4 -> return 'y'
-            5 -> return 'c'
-            6 -> return 'm'
+        return when (randomIndex) {
+            0 -> 'r'  // Red
+            1 -> 'b'  // Black
+            2 -> 'B'  // Blue
+            3 -> 'g'  // Green
+            4 -> 'y'  // Yellow
+            5 -> 'c'  // Cyan
+            6 -> 'm'  // Magenta
+            else -> '0'  // Default to '0' if no match
         }
-        return '0'
     }
-    fun setPointAndCheckScore(x:Int, y:Int,color:Char):Int{
-        setPoint(x,y,color)
-        val moveScore = movementScore(x,y)
-        if(moveScore > 0)
+
+    // Function to set the color of a point and check for score updates
+    fun setPointAndCheckScore(x: Int, y: Int, color: Char): Int {
+        setPoint(x, y, color)
+        val moveScore = movementScore(x, y)
+        if (moveScore > 0) {
             score += moveScore
+        }
         return moveScore
     }
+
+    // Function to get a random ball with coordinates and color. Do not remove coordinates from empty points
     fun getRandomBall(): Ball? {
-        if (emptyPoints.isEmpty())
+        if (emptyPoints.isEmpty()) {
             return null
+        }
         val randomIndex = Random.nextInt(emptyPoints.size)
         val newBallCoordinates = emptyPoints[randomIndex]
         return Ball(newBallCoordinates.y, newBallCoordinates.x, getRandomColor())
     }
-    fun clear(){
+
+    // Function to clear the game field and reset the score
+    fun clear() {
         field = Array(size) { CharArray(size) }
         emptyPoints = MutableList(size * size) { index ->
-                Coordinates(index % size, index / size)
-            }
+            Coordinates(index % size, index / size)
+        }
         score = 0
         for (i in 0 until size) {
             for (j in 0 until size) {
-                field[i][j] = '0' // by default all points are empty
+                field[i][j] = '0'  // By default, all points are empty
             }
         }
     }
+
 }
 
